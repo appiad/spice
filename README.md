@@ -9,4 +9,5 @@ To install, just clone the repository:
 ``` git clone https://github.com/appiad/spice/```
 ## Building
 ## Usage
+### Netlists
 ## License 
