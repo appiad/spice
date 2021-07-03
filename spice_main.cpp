@@ -1,6 +1,5 @@
 #include <string>
 #include <vector>
-#include <map>
 #include <unordered_map>
 #include <unordered_set>
 #include <iostream>
@@ -83,7 +82,9 @@ void preprocess_netlist(std::ifstream& net_file, int& num_nodes, int& num_voltag
 // fill comp id,comp map
 // ensure col of incidence mtx is ID of comp
 //todo: replace w bidirec hashmap class, use cathode_name, cathode_id local vars
-void parse_netlist(std::ifstream& net_file, MatrixXd& conductance_matrix, MatrixXd& incidence_matrix){
+void parse_netlist(std::ifstream& net_file, int num_components, int num_voltage_sources, int num_nodes,
+	MatrixXd& conductance_matrix, MatrixXd& incidence_matrix, MatrixXd& z_matrix){
+
     // component id to Component
     std::unordered_map<int, std::shared_ptr<Component>> components;
 
@@ -150,6 +151,22 @@ void parse_netlist(std::ifstream& net_file, MatrixXd& conductance_matrix, Matrix
                 Component(generate_component_id(), generate_voltage_source_id(), value, anode, 
                         cathode, name, type));
 
+			// add incidence of voltage sources to conductance_matrix
+			int conductance_col = num_components - num_voltage_sources + (component_ptr->get_type_id()-1);
+			int z_row = num_nodes + (component_ptr->get_type_id()-1);
+			if (anode != 0){
+				conductance_matrix(anode-1,conductance_col) = 1;
+				//transpose
+				conductance_matrix(conductance_col, anode-1) = 1;
+			}
+			
+			if (cathode!= 0){
+				conductance_matrix(cathode-1,conductance_col) = -1;
+				//transpose
+				conductance_matrix(conductance_col, cathode-1) = -1;
+			}
+
+			z_matrix(z_row, 0) = component_ptr->get_value();
         }
         else if (tokens[0][0] == 'I' || tokens[0][0] == 'i'){
             type = 'i';
@@ -167,18 +184,18 @@ void parse_netlist(std::ifstream& net_file, MatrixXd& conductance_matrix, Matrix
             
             if (anode != 0){
                 // node 1 diagonal 
-                conductance_matrix(anode-1,anode-1) += component_ptr->get_value();
+                conductance_matrix(anode-1,anode-1) += 1/component_ptr->get_value();
                 //node 1 off-diagonal
                 if (cathode != 0)
-                    conductance_matrix(anode-1, cathode-1) -= component_ptr->get_value();
+                    conductance_matrix(anode-1, cathode-1) -= 1/component_ptr->get_value();
             }
             
             if (cathode != 0){
                 // node 2 diagonal
-                conductance_matrix(cathode-1,cathode-1) += component_ptr->get_value();
+                conductance_matrix(cathode-1,cathode-1) += 1/component_ptr->get_value();
                 // node 2 off-diagonal
                 if (anode != 0)
-                    conductance_matrix(cathode-1, anode-1) -= component_ptr->get_value();
+                    conductance_matrix(cathode-1, anode-1) -= 1/component_ptr->get_value();
             }
             
             
@@ -198,6 +215,9 @@ void parse_netlist(std::ifstream& net_file, MatrixXd& conductance_matrix, Matrix
         components[component_ptr->get_component_id()] = component_ptr;
         tokens.clear();
     }
+	// calculate function
+
+	//debug ID's 
 	for (node_id_itr = node_id_to_name.begin();node_id_itr != node_id_to_name.end();++node_id_itr){
 		std::cout << "nID: " << node_id_itr->first << ", nName:" <<node_id_itr->second << std::endl;
 	}
@@ -206,6 +226,9 @@ void parse_netlist(std::ifstream& net_file, MatrixXd& conductance_matrix, Matrix
 		std::cout << "cID: " << itr->first << ", c: " 
 			<< itr->second->get_type() << itr->second->get_type_id() << std::endl;
 	}
+
+
+
     
 
 }
@@ -235,15 +258,25 @@ int main(int argc, char const *argv[])
 
     MatrixXd incidence_matrix (num_nodes, num_components);
     MatrixXd conductance_matrix (num_voltage_sources+num_nodes,num_voltage_sources+num_nodes);
+	MatrixXd z_matrix(num_voltage_sources+num_nodes,1);
+	MatrixXd x_matrix(num_voltage_sources+num_nodes,1);
+
     incidence_matrix.fill(0);
     conductance_matrix.fill(0);
-	parse_netlist(net_file, conductance_matrix, incidence_matrix);
-
+	z_matrix.fill(0);
+	parse_netlist(net_file, num_components,num_voltage_sources, num_nodes,
+		conductance_matrix, incidence_matrix,z_matrix);
+	x_matrix = conductance_matrix.colPivHouseholderQr().solve(z_matrix);
 	std::cout << "Conductance\n" << conductance_matrix << '\n';
 	std::cout << "Incidence\n" << incidence_matrix << '\n';
+	std::cout << "z\n" << z_matrix << '\n';
+	std::cout << "x\n" << x_matrix << '\n';
 	net_file.close();
     return 0;
 }
 
 // <comp type><name> <+> <-> <value>
 // https://lpsa.swarthmore.edu/Systems/Electrical/mna/MNA3.html#Notational_Convention
+/*todo: 
+	- look at initializing node 0 to id -1, gets rid of us having to use offset
+*/ 
