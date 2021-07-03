@@ -5,17 +5,23 @@
 
 class Component{
 public:
-    Component(int comp_id = -1, double val =-1, int anode = -1, int cathode = -1, 
-        const std::string& name = "" )
-        :  _component_id(comp_id), _value(val), _anode(anode), _cathode(cathode), _name(name) {}
+    Component(int comp_id = -1, int type_id= -1, double val =-1, int anode = -1, int cathode = -1, 
+        const std::string& name = "", std::string type = "")
+        :  _component_id(comp_id), _type_id(type_id), _value(val), _anode(anode), 
+        _cathode(cathode), _name(name), _type(type) {}
 
-    virtual int get_relative_id() const = 0;
+    int get_type_id() const{
+        return _type_id;
+    }
     int get_component_id() const {
         return _component_id;
     }
 
     double get_value() const{
         return _value;
+    }
+    const std::string& get_type(){
+        return _type;
     }
 
     int get_anode() const{
@@ -31,54 +37,37 @@ public:
 
 private:
     int _component_id;
+    int _type_id;
     double _value;
     int _anode;
     int _cathode;
     std::string _name;
-};
-
-class VoltageSource : public Component {
-public:
-    VoltageSource(int comp_id = -1, int rel_id = -1, double val =-1, int anode = -1, int cathode = -1, 
-        const std::string& name = "")
-        : Component(comp_id, val, anode, cathode, name), _voltage_source_id(rel_id) {}
-
-    int get_relative_id() const{
-        return _voltage_source_id;
-    }
-
-private:
-   int _voltage_source_id;
+    std::string _type;
 
 };
 
-class CurrentSource : public Component {
-public:
-    CurrentSource(int comp_id = -1, int rel_id = -1, double val =-1, int anode = -1, int cathode = -1, 
-        const std::string& name = "")
-        : Component(comp_id, val, anode, cathode, name), _current_source_id(rel_id) {}
+// ID Generators
+int generate_component_id(){
+    static int component_id = 1;
+    return component_id++;
+}
+int generate_voltage_source_id(){
+    static int voltage_source_id = 1;
+    return voltage_source_id++;
+}
+int generate_current_source_id(){
+    static int current_source_id = 1;
+    return current_source_id++;
+}   
 
-    int get_relative_id() const{
-        return _current_source_id;
-    }
-    
-private:
-   int _current_source_id;
+int generate_resistor_id(){
+    static int resistor_id = 1;
+    return resistor_id++;
+}
 
-};
-
-class Resistor : public Component {
-public:
-    Resistor(int comp_id = -1, int rel_id = -1, double val =-1, int anode = -1, int cathode = -1, 
-        const std::string& name = "")
-        : Component(comp_id, val, anode, cathode, name), _resistor_id(rel_id) {}
-
-    int get_relative_id() const{
-        return _resistor_id;
-    }
-private:
-   int _resistor_id;
-
-};
+int generate_node_id(){
+    static int node_id = 1;
+    return node_id++;
+}
 
 #endif
