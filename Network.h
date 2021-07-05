@@ -2,6 +2,7 @@
 #define __Network_h__
 #include <Eigen/Dense>
 #include "Components.h"
+#include "Bimap.h"
 #include "utils.h"
 using Eigen::MatrixXd;
 
@@ -23,6 +24,7 @@ private:
 	MatrixXd _conductance_matrix;
 	MatrixXd _z_matrix;
 	MatrixXd _result_matrix;
+    Bimap node_ids_names;
 	int _num_nodes, _num_components, _num_voltage_sources;
     
 };
