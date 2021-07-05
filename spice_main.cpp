@@ -10,14 +10,18 @@
 #include <Eigen/Dense>
 #include "Components.h"
 #include "Network.h"
-#include "spdlog/spdlog.h"
+// #include "spdlog/spdlog.h"
 
 using Eigen::MatrixXd;
 
 int main(int argc, char const *argv[])
 {
-    spdlog::info("Welcome to spdlog!");
-    std::ifstream net_file ("netlist.txt");
+    if (argc != 2){
+        std::cout << "Incorrect usage" << std::endl;
+        return -1;
+    }
+    // spdlog::info("Welcome to spdlog!");
+    std::ifstream net_file (argv[1]);
     if (!net_file.is_open()){
         std::cout << "Failed to open in file" << std::endl;
         return -1;

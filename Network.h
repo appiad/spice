@@ -6,8 +6,17 @@
 #include "utils.h"
 using Eigen::MatrixXd;
 
+/* Todo
+    - seperate classes to .h and .cpp
+    - error checking in preprocess
+    - output volts/current in table 
+    - make converters their own class (and bimap subclass) and make them private member vars
 
+*/
 
+/**
+ * Represents a circuit network
+ */
 class Network{
 public:
     Network();
@@ -25,7 +34,7 @@ private:
 	MatrixXd _z_matrix;
 	MatrixXd _result_matrix;
     Bimap node_ids_names;
-	int _num_nodes, _num_components, _num_voltage_sources;
+	int _num_nodes, _num_components, _num_voltage_sources, _num_resistors;
     
 };
 
@@ -33,13 +42,17 @@ Network::Network(){
 	_num_nodes = 0;
 	_num_components = 0;
 	_num_voltage_sources = 0;
+    _num_resistors = 0;
 }
 
-// get num nodes, volt_sources, components
-/*todo: use 1 component name set
-    - properly handle node 0
-    - check stirng.char comparison
-*/
+
+/**
+ * Validates netlist and counts number of components, nodes, and voltage sources. Outputs 
+ * error and exits program if invalid netlist format is given,
+ * Clears file error state and resets stream position to beginning before returning.
+ * 
+ * @param net_file Stream associated with an open netlist file
+ */
 void Network::preprocess_netlist(std::ifstream& net_file){
     std::string line;
     unsigned line_num = 1;
@@ -74,6 +87,7 @@ void Network::preprocess_netlist(std::ifstream& net_file){
         }
         else if (component_name[0] == 'R' || component_name[0] == 'r'){
             ++_num_components;
+            ++_num_resistors;
             component_names.insert(component_name);
         }
         else{
@@ -90,22 +104,25 @@ void Network::preprocess_netlist(std::ifstream& net_file){
 	net_file.clear();
 	net_file.seekg(0);
 }
-
+/**
+ * Parses netlist to populate conducatnce and incidence matrices as well as store
+ * associations between node/component id's and their given names from the netlist.
+ * 
+ * @param net_file Stream associated with an open netlist file.
+ */
 void Network::parse_netlist(std::ifstream& net_file){
 	// component id to Component
     std::unordered_map<int, std::shared_ptr<Component>> components;
 
     // bidirectional node id/name hashmaps
-    std::unordered_map<int, std::string> node_id_to_name;
-    std::unordered_map<std::string, int> node_name_to_id;
-
+    Bimap node_id_name_converter;
+    Bimap component_id_name_converter;
 	//bidrec comp id/name
 
-	node_id_to_name[0] = "0";
-	node_name_to_id["0"] = 0;
+    // add ground node
+    node_id_name_converter.insert(0,"0");
 
-    std::unordered_map<int, std::string>::iterator node_id_itr;
-    std::unordered_map<std::string, int>::iterator node_name_itr;
+    std::pair<bool,std::pair<int,std::string>> node_id_name;
 
     std::vector<std::string> tokens;
     std::shared_ptr<Component> component_ptr;
@@ -125,7 +142,7 @@ void Network::parse_netlist(std::ifstream& net_file){
 	_result_matrix.fill(0);
 	
     while (std::getline(net_file, line)){
-		std::cout << "line no: " << line_num << '\n';
+		std::cout << "line no: " << line_num << std::endl;
 		// skip first line which is model description
         if (line_num == 1){
             ++line_num;
@@ -138,28 +155,27 @@ void Network::parse_netlist(std::ifstream& net_file){
 		cathode_name = tokens[2];
         value = std::stod(tokens[3]);
        
-        // Node id initlialization 
 
-        node_name_itr = node_name_to_id.find(anode_name);
-        if (node_name_itr == node_name_to_id.end() ){
+        // Generate node id's if we haven't already
+        node_id_name = node_id_name_converter.find(anode_name);
+        if (!node_id_name.first){
             anode_id = generate_node_id();
-            node_name_to_id[anode_name] = anode_id;
-            node_id_to_name[anode_id] = anode_name;
+            node_id_name_converter.insert(anode_id, anode_name);
         }
         else{
-            anode_id = node_name_itr->second;
+            anode_id = node_id_name.second.first;
         }
 
-        node_name_itr = node_name_to_id.find(cathode_name);
-        if (node_name_itr == node_name_to_id.end() ){
+        node_id_name = node_id_name_converter.find(cathode_name);
+        if (!node_id_name.first){
             cathode_id = generate_node_id();
-            node_name_to_id[cathode_name] = cathode_id;
-            node_id_to_name[cathode_id] = cathode_name;
+            node_id_name_converter.insert(cathode_id,cathode_name);
         }
         else{
-            cathode_id = node_name_itr->second;
+            cathode_id = node_id_name.second.first;
         }
         
+        // Determine if the component is a voltage source, resistor, or current source
         if (component_name[0] == 'V' || component_name[0] == 'v'){
             component_type = 'v';
             component_ptr = std::make_shared<Component> (
@@ -167,27 +183,39 @@ void Network::parse_netlist(std::ifstream& net_file){
                         cathode_id, component_name, component_type));
 
 			// add incidence of voltage sources to conductance_matrix
-			int conductance_col = _num_components - _num_voltage_sources + (component_ptr->get_type_id()-1);
+			int conductance_col = _conductance_matrix.cols() - _num_voltage_sources 
+                + (component_ptr->get_type_id()-1);
 			int z_row = _num_nodes + (component_ptr->get_type_id()-1);
+            std::cout << anode_id <<_conductance_matrix.rows()<< "   " 
+                << conductance_col << _conductance_matrix.cols() << std::endl;
 			if (anode_id != 0){
 				_conductance_matrix(anode_id-1,conductance_col) = 1;
 				//transpose
+                std::cout << "ba" << std::endl;
 				_conductance_matrix(conductance_col, anode_id-1) = 1;
 			}
-			
+			std::cout << "b" << std::endl;
 			if (cathode_id!= 0){
 				_conductance_matrix(cathode_id-1,conductance_col) = -1;
 				//transpose
 				_conductance_matrix(conductance_col, cathode_id-1) = -1;
 			}
-
+            // add voltage value to other side of equation for this node
 			_z_matrix(z_row, 0) = component_ptr->get_value();
+            std::cout << "c" << std::endl;
         }
         else if (component_name[0] == 'I' || component_name[0] == 'i'){
             component_type = 'i';
             component_ptr = std::make_shared<Component> (
                 Component(generate_component_id(), generate_current_source_id(), value, anode_id, 
                         cathode_id, component_name, component_type));
+            // add current value to other side of equation for this node
+            if (cathode_id != 0){
+                _z_matrix(cathode_id-1,0) = component_ptr->get_value();
+            }
+            if (anode_id != 0){
+                _z_matrix(anode_id-1,0) = -component_ptr->get_value();
+            }
         }
         else if (tokens[0][0] == 'R' || tokens[0][0] == 'r'){
             component_type = 'r';
@@ -196,19 +224,15 @@ void Network::parse_netlist(std::ifstream& net_file){
                         cathode_id, component_name, component_type)
             );
         
-            
+            // Add the effect of the resistor for each nodes conducatnce
             if (anode_id != 0){
-                // node 1 diagonal 
                 _conductance_matrix(anode_id-1,anode_id-1) += 1/component_ptr->get_value();
-                //node 1 off-diagonal
                 if (cathode_id != 0)
                     _conductance_matrix(anode_id-1, cathode_id-1) -= 1/component_ptr->get_value();
             }
             
             if (cathode_id != 0){
-                // node 2 diagonal
                 _conductance_matrix(cathode_id-1,cathode_id-1) += 1/component_ptr->get_value();
-                // node 2 off-diagonal
                 if (anode_id != 0)
                     _conductance_matrix(cathode_id-1, anode_id-1) -= 1/component_ptr->get_value();
             }
@@ -217,29 +241,36 @@ void Network::parse_netlist(std::ifstream& net_file){
         else{
             std::cout << "failed to find component type" << std::endl;
         }
-        //Incidence
+
+        // Add the nodes the component is connected to (excluding ground) to the incidence matrix
         if (anode_id != 0){
             _incidence_matrix(anode_id-1,component_ptr->get_component_id()-1) = 1;
         }
         if (cathode_id != 0){
             _incidence_matrix(cathode_id-1,component_ptr->get_component_id()-1) = -1;
         }
-		++line_num;
         components[component_ptr->get_component_id()] = component_ptr;
+        component_id_name_converter.insert(component_ptr->get_component_id(), component_name);
         tokens.clear();
+        ++line_num;
     }
 
 	//debug ID's 
-	for (node_id_itr = node_id_to_name.begin();node_id_itr != node_id_to_name.end();++node_id_itr){
-		std::cout << "nID: " << node_id_itr->first << ", nName:" <<node_id_itr->second << std::endl;
-	}
-	std::cout << "\n\n";
-	for (auto itr = components.begin();itr != components.end();++itr){
-		std::cout << "cID: " << itr->first << ", c: " 
-			<< itr->second->get_type() << itr->second->get_type_id() << std::endl;
-	}
+	// for (node_id_itr = node_id_to_name.begin();node_id_itr != node_id_to_name.end();++node_id_itr){
+	// 	std::cout << "nID: " << node_id_itr->first << ", nName:" <<node_id_itr->second << std::endl;
+	// }
+	// std::cout << "\n\n";
+	// for (auto itr = components.begin();itr != components.end();++itr){
+	// 	std::cout << "cID: " << itr->first << ", c: " 
+	// 		<< itr->second->get_type() << itr->second->get_type_id() << std::endl;
+	// }
 }
 
+/**
+ * Solves for node voltages and current through voltage sources.
+ * 
+ * @param net_file Stream associated with an open netlist file
+ */
 void Network::calculate(){
 	_result_matrix = _conductance_matrix.colPivHouseholderQr().solve(_z_matrix);
 }

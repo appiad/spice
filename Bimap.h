@@ -35,9 +35,9 @@ std::pair<bool,std::pair<int,std::string>> Bimap::find(int key1){
 }
 
 std::pair<bool,std::pair<int,std::string>> Bimap::find(const std::string& key2){
-	std::unordered_map<std::string,int>::iterator itr = _map_t1_t2.find(key1);
+	std::unordered_map<std::string,int>::iterator itr = _map_t2_t1.find(key2);
 	if (itr != _map_t2_t1.end()){
-		return std::make_pair(true,std::make_pair(itr->second, key1));
+		return std::make_pair(true,std::make_pair(itr->second, key2));
 	}
 	else{
 		std::pair<int,std::string> tmp;
