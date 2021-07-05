@@ -3,7 +3,10 @@
 #include <Eigen/Dense>
 #include "Components.h"
 #include "Bimap.h"
+#include "IdGenerator.h"
 #include "utils.h"
+#include <unordered_map>
+#include <unordered_set>
 using Eigen::MatrixXd;
 
 /* Todo
@@ -34,6 +37,8 @@ private:
 	MatrixXd _z_matrix;
 	MatrixXd _result_matrix;
     Bimap node_ids_names;
+    IdGenerator node_id_gen, component_id_gen, voltage_source_id_gen, 
+        current_source_id_gen, resistor_id_gen;
 	int _num_nodes, _num_components, _num_voltage_sources, _num_resistors;
     
 };
@@ -159,7 +164,7 @@ void Network::parse_netlist(std::ifstream& net_file){
         // Generate node id's if we haven't already
         node_id_name = node_id_name_converter.find(anode_name);
         if (!node_id_name.first){
-            anode_id = generate_node_id();
+            anode_id = node_id_gen.generate();
             node_id_name_converter.insert(anode_id, anode_name);
         }
         else{
@@ -168,7 +173,7 @@ void Network::parse_netlist(std::ifstream& net_file){
 
         node_id_name = node_id_name_converter.find(cathode_name);
         if (!node_id_name.first){
-            cathode_id = generate_node_id();
+            cathode_id = node_id_gen.generate();
             node_id_name_converter.insert(cathode_id,cathode_name);
         }
         else{
@@ -179,7 +184,7 @@ void Network::parse_netlist(std::ifstream& net_file){
         if (component_name[0] == 'V' || component_name[0] == 'v'){
             component_type = 'v';
             component_ptr = std::make_shared<Component> (
-                Component(generate_component_id(), generate_voltage_source_id(), value, anode_id, 
+                Component(component_id_gen.generate(), voltage_source_id_gen.generate(), value, anode_id, 
                         cathode_id, component_name, component_type));
 
 			// add incidence of voltage sources to conductance_matrix
@@ -207,7 +212,7 @@ void Network::parse_netlist(std::ifstream& net_file){
         else if (component_name[0] == 'I' || component_name[0] == 'i'){
             component_type = 'i';
             component_ptr = std::make_shared<Component> (
-                Component(generate_component_id(), generate_current_source_id(), value, anode_id, 
+                Component(component_id_gen.generate(), current_source_id_gen.generate(), value, anode_id, 
                         cathode_id, component_name, component_type));
             // add current value to other side of equation for this node
             if (cathode_id != 0){
@@ -220,7 +225,7 @@ void Network::parse_netlist(std::ifstream& net_file){
         else if (tokens[0][0] == 'R' || tokens[0][0] == 'r'){
             component_type = 'r';
             component_ptr = std::make_shared<Component> (
-                Component(generate_component_id(), generate_resistor_id(), value, anode_id, 
+                Component(component_id_gen.generate(), resistor_id_gen.generate(), value, anode_id, 
                         cathode_id, component_name, component_type)
             );
         

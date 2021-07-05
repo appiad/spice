@@ -45,29 +45,4 @@ private:
     std::string _type;
 
 };
-
-// ID Generators
-int generate_component_id(){
-    static int component_id = 1;
-    return component_id++;
-}
-int generate_voltage_source_id(){
-    static int voltage_source_id = 1;
-    return voltage_source_id++;
-}
-int generate_current_source_id(){
-    static int current_source_id = 1;
-    return current_source_id++;
-}   
-
-int generate_resistor_id(){
-    static int resistor_id = 1;
-    return resistor_id++;
-}
-
-int generate_node_id(){
-    static int node_id = 1;
-    return node_id++;
-}
-
 #endif
