@@ -6,5 +6,8 @@ find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Catch2 REQUIRED)
 find_package(spdlog REQUIRED)
 
-add_subdirectory(src)
+include(CTest)
+include(Catch)
 
+add_subdirectory(src)
+add_subdirectory(test)

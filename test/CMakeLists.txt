@@ -1,0 +1,5 @@
+include_directories(${cpp_spice_SOURCE_DIR}/include)
+add_executable(unit_tests test_main.cpp)
+target_link_libraries(unit_tests PUBLIC Catch2::Catch2)
+target_link_libraries(unit_tests PRIVATE netlib)
+catch_discover_tests(unit_tests)
