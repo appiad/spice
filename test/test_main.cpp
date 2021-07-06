@@ -1,11 +1,12 @@
 #define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 #include <Eigen/Dense>
-#include <cassert>
-#include "Components.h"
-#include "Network.h"
 #include <fstream>
 #include <iostream>
+#include <cassert>
+#include "Network.h"
+
+
 
 using Eigen::MatrixXd;
  
