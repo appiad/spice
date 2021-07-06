@@ -15,6 +15,7 @@ make install
 - Catch2
 ```
 git clone https://github.com/catchorg/Catch2.git
+git checkout v2.x
 cmake -Bbuild -H. -DBUILD_TESTING=OFF
 sudo cmake --build build/ --target install
 ```
@@ -26,7 +27,7 @@ cd spdlog && mkdir build && cd build
 cmake .. && make -j
 make install 
 ```
-Note that ```sudo make install``` may have to be used instead of ```make install```.
+Note that the version of Catch2 installed must be part of the v2.x branch. Also ```sudo make install``` may have to be used instead of ```make install```.
 ## Installation 
 To install, just clone the repository:
 
