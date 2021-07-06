@@ -1,3 +1,4 @@
 eigen*
 .vscode*
 *.exe
+build

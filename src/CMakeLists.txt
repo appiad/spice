@@ -1,0 +1,5 @@
+include_directories(${cpp_spice_SOURCE_DIR}/include)
+add_library(lib Network.cpp Components.cpp IdGenerator.cpp utils.cpp Bimap.cpp)
+target_link_libraries(lib Eigen3::Eigen)
+add_executable(cpp_spice spice_main.cpp)
+target_link_libraries(cpp_spice lib)
